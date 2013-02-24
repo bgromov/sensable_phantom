@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="phantom_omni" type="omni" name="omni_node" respawn="true">
+	<param name="publish_rate" value="1000" />
+    </node>
+</launch>

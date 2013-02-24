@@ -1,0 +1,14 @@
+# Build directories
+bin/
+build/
+
+# Eclipse project files
+.cproject
+.pydevproject
+.project
+
+# Generated files
+Makefile
+
+# Backup files (e.g. gedit backup files)
+*~
