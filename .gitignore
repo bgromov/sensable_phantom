@@ -11,3 +11,4 @@ src/phantom_omni/
 
 # Backup files (e.g. gedit backup files)
 *~
+*.swp
