@@ -172,7 +172,7 @@ class PhantomROS {
         l6.setRotation(tf::Quaternion(0.,0, state->thetas[6]+M_PI));
         
         l0_6 = l0 * l1 * l2 * l3 * l4 * l5 * l6;
-        //br.sendTransform(tf::StampedTransform(l0_6, ros::Time::now(), link_names[0].c_str(), link_names[6].c_str()));
+        br.sendTransform(tf::StampedTransform(l0_6, ros::Time::now(), link_names[0].c_str(), link_names[6].c_str()));
         //Don't send these as they slow down haptics thread
         //br.sendTransform(tf::StampedTransform(l1, ros::Time::now(), link_names[0].c_str(), link_names[1].c_str()));
         //br.sendTransform(tf::StampedTransform(l2, ros::Time::now(), link_names[1].c_str(), link_names[2].c_str()));
