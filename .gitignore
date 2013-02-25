@@ -4,10 +4,19 @@ build/
 msg_gen/
 src/phantom_omni/
 
+catkin/
+catkin_generated/
+cmake_install.cmake
+devel/
+gtest/
+
 # Eclipse project files
 .cproject
 .pydevproject
 .project
+
+CATKIN_IGNORE
+
 
 # Backup files (e.g. gedit backup files)
 *~
