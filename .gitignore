@@ -1,6 +1,8 @@
 # Build directories
 bin/
 build/
+msg_gen/
+src/phantom_omni/
 
 # Eclipse project files
 .cproject
