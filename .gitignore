@@ -7,8 +7,5 @@ build/
 .pydevproject
 .project
 
-# Generated files
-Makefile
-
 # Backup files (e.g. gedit backup files)
 *~
