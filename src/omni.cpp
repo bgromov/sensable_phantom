@@ -144,11 +144,11 @@ class PhantomROS {
     {
         //Construct transforms
         tf::Transform l0, sensable, l1, l2, l3, l4, l5, l6, l0_6;
-        l0.setOrigin(tf::Vector3(0., 0, 0.15));
+        l0.setOrigin(tf::Vector3(0, 0, 0.135)); // was .15
         l0.setRotation(tf::createQuaternionFromRPY(0, 0, 0));
         br.sendTransform(tf::StampedTransform(l0, ros::Time::now(), omni_name.c_str(), link_names[0].c_str()));
 
-        sensable.setOrigin(tf::Vector3(0., 0, 0));
+        sensable.setOrigin(tf::Vector3(0, 0, 0));
         sensable.setRotation(tf::createQuaternionFromRPY(M_PI/2, 0, -M_PI/2));
         br.sendTransform(tf::StampedTransform(sensable, ros::Time::now(), 
 			omni_name.c_str(), sensable_frame_name.c_str()));
@@ -159,10 +159,10 @@ class PhantomROS {
         l2.setOrigin(tf::Vector3(0, 0, 0));
         l2.setRotation(tf::createQuaternionFromRPY(0, state->thetas[2], 0));
                                                                                                           
-        l3.setOrigin(tf::Vector3(-.131, 0, 0));
+        l3.setOrigin(tf::Vector3(-.135, 0, 0)); // was -.131
         l3.setRotation(tf::createQuaternionFromRPY(0, state->thetas[3], 0));
                                                                                                           
-        l4.setOrigin(tf::Vector3(0, 0, -.137));
+        l4.setOrigin(tf::Vector3(0, 0, -.135)); // was -.137
         l4.setRotation(tf::createQuaternionFromRPY(0, 0, state->thetas[4] + M_PI));
                                                                                                           
         l5.setOrigin(tf::Vector3(0, 0, 0));
