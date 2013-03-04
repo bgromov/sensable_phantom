@@ -1,6 +1,6 @@
 <launch>
-	<arg name="omni_name" value="omni1" />
-	<arg name="publish_rate" value="1000" />
+	<arg name="omni_name" />
+	<arg name="publish_rate" />
 	<group ns="$(arg omni_name)">
 		<param name="tf_prefix" value="$(arg omni_name)" />
 		<param name="publish_rate" value="$(arg publish_rate)" />
