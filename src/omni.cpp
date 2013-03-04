@@ -15,6 +15,7 @@
 #include <HDU/hduError.h>
 #include <HDU/hduVector.h>
 #include <HDU/hduMatrix.h>
+#include <HDU/hduQuaternion.h>
 
 #include "phantom_omni/PhantomButtonEvent.h"
 #include "phantom_omni/OmniFeedback.h"
@@ -37,6 +38,9 @@ struct OmniState
     hduVector3Dd rot;
     hduVector3Dd joints;
     hduVector3Dd force;     //3 element double vector force[0], force[1], force[2]
+
+    hduMatrix cur_transform;
+
     float thetas[7];
     int buttons[2];
     int buttons_prev[2];
@@ -50,7 +54,7 @@ class PhantomROS {
 	public:
 	ros::NodeHandle n;
 	ros::Publisher pose_publisher;
-	//ros::Publisher omni_pose_publisher;
+	ros::Publisher omni_pose_publisher;
 
     ros::Publisher button_publisher;
 	ros::Subscriber haptic_sub;
@@ -70,7 +74,7 @@ class PhantomROS {
         stream00 << omni_name << "_pose";
         std::string pose_topic_name = std::string(stream00.str());
         pose_publisher = n.advertise<geometry_msgs::PoseStamped>(pose_topic_name.c_str(), 100);
-        //omni_pose_publisher = n.advertise<geometry_msgs::PoseStamped>("omni_pose_internal", 100);
+        omni_pose_publisher = n.advertise<geometry_msgs::PoseStamped>("omni_pose_internal", 100);
 
         //Publish button state on NAME_button
         std::ostringstream stream0;
@@ -114,6 +118,7 @@ class PhantomROS {
         state->pos_hist2 = zeros; //3x1 history of position
 	state->lock = true;
 	state->lock_pos = zeros;
+	state->cur_transform = hduMatrix::createTranslation(0, 0, 0);
     }
 
     /*******************************************************************************
@@ -148,10 +153,10 @@ class PhantomROS {
         l0.setRotation(tf::createQuaternionFromRPY(0, 0, 0));
         br.sendTransform(tf::StampedTransform(l0, ros::Time::now(), omni_name.c_str(), link_names[0].c_str()));
 
-        sensable.setOrigin(tf::Vector3(0, 0, 0));
+        sensable.setOrigin(tf::Vector3(-0.2, 0, 0));
         sensable.setRotation(tf::createQuaternionFromRPY(M_PI/2, 0, -M_PI/2));
         br.sendTransform(tf::StampedTransform(sensable, ros::Time::now(), 
-			omni_name.c_str(), sensable_frame_name.c_str()));
+			(omni_name + "_link0").c_str(), sensable_frame_name.c_str()));
 
         l1.setOrigin(tf::Vector3(0, 0, 0));
         l1.setRotation(tf::createQuaternionFromRPY(0, 0, -state->thetas[1]));
@@ -172,7 +177,7 @@ class PhantomROS {
         l6.setRotation(tf::createQuaternionFromRPY(state->thetas[6] + M_PI, 0, 0));
         
 //        l0_6 = l0 * l1 * l2 * l3 * l4 * l5 * l6;
-//        br.sendTransform(tf::StampedTransform(l0_6, ros::Time::now(), link_names[0].c_str(), link_names[6].c_str()));
+//        br.sendTransform(tf::StampedTransform(l0_6, ros::Time::now(), link_names[0].c_str(), (link_names[6] + "_hip").c_str()));
         //Don't send these as they slow down haptics thread
         br.sendTransform(tf::StampedTransform(l1, ros::Time::now(), link_names[0].c_str(), link_names[1].c_str()));
         br.sendTransform(tf::StampedTransform(l2, ros::Time::now(), link_names[1].c_str(), link_names[2].c_str()));
@@ -189,13 +194,26 @@ class PhantomROS {
         pose_stamped.pose.orientation.w = 1.;
         pose_publisher.publish(pose_stamped);
 
-        //geometry_msgs::PoseStamped omni_internal_pose;
-        //omni_internal_pose.header.frame_id = "sensable";
-        //omni_internal_pose.header.stamp = ros::Time::now();
-        //omni_internal_pose.pose.position.x = state->position[0]/1000.0;
-        //omni_internal_pose.pose.position.y = state->position[1]/1000.0;
-        //omni_internal_pose.pose.position.z = state->position[2]/1000.0;
-        //omni_pose_publisher.publish(omni_internal_pose);
+        tf::Quaternion tQ;
+        hduQuaternion hQ;
+        state->cur_transform.getRotation(hQ);
+
+        tQ = tf::Quaternion(hQ.v()[0], hQ.v()[1], hQ.v()[2], hQ.s());
+        tf::quaternionTFToMsg(tQ, pose_stamped.pose.orientation);
+        // rotate end-effector back to base
+        tQ = tQ * sensable.getRotation().inverse();
+
+        geometry_msgs::PoseStamped omni_internal_pose;
+        omni_internal_pose.header.frame_id = sensable_frame_name;
+        omni_internal_pose.header.stamp = ros::Time::now();
+        omni_internal_pose.pose.position.x = state->position[0]/1000.0;
+        omni_internal_pose.pose.position.y = state->position[1]/1000.0;
+        omni_internal_pose.pose.position.z = state->position[2]/1000.0;
+        tf::quaternionTFToMsg(tQ, omni_internal_pose.pose.orientation);
+        omni_pose_publisher.publish(omni_internal_pose);
+
+        std::cout << pose_stamped;
+        std::cout << omni_internal_pose;
 
         if ((state->buttons[0] != state->buttons_prev[0]) or (state->buttons[1] != state->buttons_prev[1]))
         {
@@ -224,6 +242,7 @@ HDCallbackCode HDCALLBACK omni_state_callback(void *pUserData)
 	hdGetDoublev(HD_CURRENT_GIMBAL_ANGLES, omni_state->rot);      
 	hdGetDoublev(HD_CURRENT_POSITION,      omni_state->position);
 	hdGetDoublev(HD_CURRENT_JOINT_ANGLES,  omni_state->joints);
+	hdGetDoublev(HD_CURRENT_TRANSFORM,     omni_state->cur_transform);
 
         hduVector3Dd vel_buff(0, 0, 0);
 	vel_buff = (omni_state->position*3 - 4*omni_state->pos_hist1 + omni_state->pos_hist2)/0.002;  //mm/s, 2nd order backward dif
