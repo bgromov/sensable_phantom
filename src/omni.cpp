@@ -207,9 +207,8 @@ public:
     hduQuaternion hQ;
     state->cur_transform.getRotation(hQ);
 
-    tQ = tf::Quaternion(hQ.v()[0], hQ.v()[1], hQ.v()[2], hQ.s());
-    tf::quaternionTFToMsg(tQ, pose_stamped.pose.orientation);
     // rotate end-effector back to base
+    tQ = tf::Quaternion(hQ.v()[0], hQ.v()[1], hQ.v()[2], hQ.s());
     tQ = tQ * sensable.getRotation().inverse();
 
     geometry_msgs::PoseStamped omni_internal_pose;
@@ -218,11 +217,15 @@ public:
     omni_internal_pose.pose.position.x = state->position[0] / 1000.0;
     omni_internal_pose.pose.position.y = state->position[1] / 1000.0;
     omni_internal_pose.pose.position.z = state->position[2] / 1000.0;
+    // same but uses values directly from transformation matrix
+//    omni_internal_pose.pose.position.x = state->cur_transform.get(3,0) / 1000.0;
+//    omni_internal_pose.pose.position.y = state->cur_transform.get(3,1) / 1000.0;
+//    omni_internal_pose.pose.position.z = state->cur_transform.get(3,2) / 1000.0;
     tf::quaternionTFToMsg(tQ, omni_internal_pose.pose.orientation);
     omni_pose_publisher.publish(omni_internal_pose);
 
-    std::cout << pose_stamped;
-    std::cout << omni_internal_pose;
+//    std::cout << pose_stamped;
+//    std::cout << omni_internal_pose;
 
     if ((state->buttons[0] != state->buttons_prev[0]) or (state->buttons[1] != state->buttons_prev[1]))
     {
