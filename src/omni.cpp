@@ -52,51 +52,59 @@ class PhantomROS
 {
 
 public:
-  ros::NodeHandle n;
+  ros::NodeHandlePtr node_;
+
   ros::Publisher pose_publisher;
   ros::Publisher omni_pose_publisher;
 
   ros::Publisher button_publisher;
   ros::Subscriber haptic_sub;
-  std::string omni_name;
+  std::string omni_frame_name;
   std::string sensable_frame_name;
   std::string link_names[7];
+
+  std::string tf_prefix_;
 
   OmniState *state;
   tf::TransformBroadcaster br;
 
-  void init(OmniState *s)
+  PhantomROS() : state(NULL)
   {
-    ros::param::param(std::string("~omni_name"), omni_name, std::string("omni1"));
+  }
 
-    //Publish on NAME_pose
-    std::ostringstream stream00;
-    stream00 << omni_name << "_pose";
-    std::string pose_topic_name = std::string(stream00.str());
-    pose_publisher = n.advertise<geometry_msgs::PoseStamped>(pose_topic_name.c_str(), 100);
-    omni_pose_publisher = n.advertise<geometry_msgs::PoseStamped>("omni_pose_internal", 100);
+  int init(OmniState *s)
+  {
+    if(!s)
+    {
+      ROS_FATAL("Internal error. OmniState is NULL.");
+      return -1;
+    }
 
-    //Publish button state on NAME_button
-    std::ostringstream stream0;
-    stream0 << omni_name << "_button";
-    std::string button_topic = std::string(stream0.str());
-    button_publisher = n.advertise<phantom_omni::PhantomButtonEvent>(button_topic.c_str(), 100);
+    node_ = ros::NodeHandlePtr(new ros::NodeHandle);
+    node_->param(std::string("tf_prefix"), tf_prefix_, std::string("/"));
 
-    //Subscribe to NAME_force_feedback
-    std::ostringstream stream01;
-    stream01 << omni_name << "_force_feedback";
-    std::string force_feedback_topic = std::string(stream01.str());
-    haptic_sub = n.subscribe(force_feedback_topic.c_str(), 100, &PhantomROS::force_callback, this);
+    omni_frame_name = "omni_base_link";
 
-    //Frame of force feedback (NAME_sensable)
-    std::ostringstream stream2;
-    stream2 << omni_name << "_sensable";
-    sensable_frame_name = std::string(stream2.str());
+    //Publish on NAME/pose
+    std::string pose_topic_name = "pose";
+    pose_publisher = node_->advertise<geometry_msgs::PoseStamped>(pose_topic_name.c_str(), 100);
+    omni_pose_publisher = node_->advertise<geometry_msgs::PoseStamped>("pose_internal", 100);
+
+    //Publish button state on NAME/button
+    std::string button_topic = "button";
+    button_publisher = node_->advertise<phantom_omni::PhantomButtonEvent>(button_topic.c_str(), 100);
+
+    //Subscribe to NAME/force_feedback
+    std::string force_feedback_topic = "force_feedback";
+    haptic_sub = node_->subscribe(force_feedback_topic.c_str(), 100, &PhantomROS::force_callback, this);
+
+    //Frame of force feedback (NAME/sensable)
+    sensable_frame_name = "sensable_link";
 
     for (int i = 0; i < 7; i++)
     {
       std::ostringstream stream1;
-      stream1 << omni_name << "_link" << i;
+      stream1 << "omni_" << i << "_link";
       link_names[i] = std::string(stream1.str());
     }
 
@@ -118,6 +126,8 @@ public:
     state->lock = true;
     state->lock_pos = zeros;
     state->cur_transform = hduMatrix::createTranslation(0, 0, 0);
+
+    return 0;
   }
 
   /*******************************************************************************
@@ -150,12 +160,12 @@ public:
     tf::Transform l0, sensable, l1, l2, l3, l4, l5, l6, l0_6;
     l0.setOrigin(tf::Vector3(0, 0, 0.135)); // was .15
     l0.setRotation(tf::createQuaternionFromRPY(0, 0, 0));
-    br.sendTransform(tf::StampedTransform(l0, ros::Time::now(), omni_name.c_str(), link_names[0].c_str()));
+    br.sendTransform(tf::StampedTransform(l0, ros::Time::now(), omni_frame_name.c_str(), link_names[0].c_str()));
 
     sensable.setOrigin(tf::Vector3(-0.2, 0, 0));
     sensable.setRotation(tf::createQuaternionFromRPY(M_PI / 2, 0, -M_PI / 2));
     br.sendTransform(
-        tf::StampedTransform(sensable, ros::Time::now(), (omni_name + "_link0").c_str(), sensable_frame_name.c_str()));
+        tf::StampedTransform(sensable, ros::Time::now(), link_names[0].c_str(), sensable_frame_name.c_str()));
 
     l1.setOrigin(tf::Vector3(0, 0, 0));
     l1.setRotation(tf::createQuaternionFromRPY(0, 0, -state->thetas[1]));
@@ -187,7 +197,7 @@ public:
 
     //Sample 'end effector' pose
     geometry_msgs::PoseStamped pose_stamped;
-    pose_stamped.header.frame_id = link_names[6].c_str();
+    pose_stamped.header.frame_id = tf::resolve(tf_prefix_, link_names[6]);
     pose_stamped.header.stamp = ros::Time::now();
     pose_stamped.pose.position.x = 0.0; //was 0.03 to end of phantom
     pose_stamped.pose.orientation.w = 1.;
@@ -203,7 +213,7 @@ public:
     tQ = tQ * sensable.getRotation().inverse();
 
     geometry_msgs::PoseStamped omni_internal_pose;
-    omni_internal_pose.header.frame_id = sensable_frame_name;
+    omni_internal_pose.header.frame_id = tf::resolve(tf_prefix_, sensable_frame_name);
     omni_internal_pose.header.stamp = ros::Time::now();
     omni_internal_pose.pose.position.x = state->position[0] / 1000.0;
     omni_internal_pose.pose.position.y = state->position[1] / 1000.0;
@@ -256,8 +266,8 @@ HDCallbackCode HDCALLBACK omni_state_callback(void *pUserData)
   omni_state->out_vel3 = omni_state->out_vel2;
   omni_state->out_vel2 = omni_state->out_vel1;
   omni_state->out_vel1 = omni_state->velocity;
-  //	printf("position x, y, z: %f %f %f \n", omni_state->position[0], omni_state->position[1], omni_state->position[2]);
-  //	printf("velocity x, y, z, time: %f %f %f \n", omni_state->velocity[0], omni_state->velocity[1],omni_state->velocity[2]);
+  //	printf("position x, y, z: %f %f %f \node_", omni_state->position[0], omni_state->position[1], omni_state->position[2]);
+  //	printf("velocity x, y, z, time: %f %f %f \node_", omni_state->velocity[0], omni_state->velocity[1],omni_state->velocity[2]);
   if (omni_state->lock == true)
   {
     omni_state->force = 0.04 * (omni_state->lock_pos - omni_state->position) - 0.001 * omni_state->velocity;
@@ -332,7 +342,10 @@ void *ros_publish(void *ptr)
 {
   PhantomROS *omni_ros = (PhantomROS *)ptr;
   int publish_rate;
-  omni_ros->n.param(std::string("publish_rate"), publish_rate, 100);
+
+  // reading param from private namespace
+  omni_ros->node_->param(std::string("publish_rate"), publish_rate, 100);
+
   ros::Rate loop_rate(publish_rate);
   ros::AsyncSpinner spinner(2);
   spinner.start();
@@ -380,7 +393,12 @@ int main(int argc, char** argv)
   OmniState state;
   PhantomROS omni_ros;
 
-  omni_ros.init(&state);
+  if(omni_ros.init(&state))
+  {
+    hdStopScheduler();
+    hdDisableDevice(hHD);
+    return -1;
+  }
   hdScheduleAsynchronous(omni_state_callback, &state, HD_MAX_SCHEDULER_PRIORITY);
 
   ////////////////////////////////////////////////////////////////
