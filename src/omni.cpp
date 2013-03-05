@@ -39,7 +39,7 @@ struct OmniState
   hduVector3Dd joints;
   hduVector3Dd force; //3 element double vector force[0], force[1], force[2]
 
-  hduMatrix cur_transform;
+  hduMatrix hd_cur_transform;
 
   float thetas[7];
   int buttons[2];
@@ -125,7 +125,7 @@ public:
     state->pos_hist2 = zeros; //3x1 history of position
     state->lock = true;
     state->lock_pos = zeros;
-    state->cur_transform = hduMatrix::createTranslation(0, 0, 0);
+    state->hd_cur_transform = hduMatrix::createTranslation(0, 0, 0);
 
     return 0;
   }
@@ -203,25 +203,22 @@ public:
     pose_stamped.pose.orientation.w = 1.;
     pose_publisher.publish(pose_stamped);
 
-    tf::Quaternion tQ;
-    hduQuaternion hQ;
-    state->cur_transform.getRotation(hQ);
-
-    // rotate end-effector back to base
-    tQ = tf::Quaternion(hQ.v()[0], hQ.v()[1], hQ.v()[2], hQ.s());
-    tQ = tQ * sensable.getRotation().inverse();
-
+    tf::Transform tf_cur_transform;
     geometry_msgs::PoseStamped omni_internal_pose;
-    omni_internal_pose.header.frame_id = tf::resolve(tf_prefix_, sensable_frame_name);
+
+    // Convert column-major matrix to row-major
+    tf_cur_transform.setFromOpenGLMatrix(state->hd_cur_transform);
+    // Scale from mm to m
+    tf_cur_transform.setOrigin(tf_cur_transform.getOrigin() / 1000.0);
+    // Since hd_cur_transform is defined w.r.t. sensable_frame
+    tf_cur_transform = sensable * tf_cur_transform;
+    // Rotate end-effector back to base
+    tf_cur_transform.setRotation(tf_cur_transform.getRotation() * sensable.getRotation().inverse());
+
+    // Publish pose in omni_0_link
+    omni_internal_pose.header.frame_id = tf::resolve(tf_prefix_, link_names[0]);
     omni_internal_pose.header.stamp = ros::Time::now();
-    omni_internal_pose.pose.position.x = state->position[0] / 1000.0;
-    omni_internal_pose.pose.position.y = state->position[1] / 1000.0;
-    omni_internal_pose.pose.position.z = state->position[2] / 1000.0;
-    // same but uses values directly from transformation matrix
-//    omni_internal_pose.pose.position.x = state->cur_transform.get(3,0) / 1000.0;
-//    omni_internal_pose.pose.position.y = state->cur_transform.get(3,1) / 1000.0;
-//    omni_internal_pose.pose.position.z = state->cur_transform.get(3,2) / 1000.0;
-    tf::quaternionTFToMsg(tQ, omni_internal_pose.pose.orientation);
+    tf::poseTFToMsg(tf_cur_transform, omni_internal_pose.pose);
     omni_pose_publisher.publish(omni_internal_pose);
 
 //    std::cout << pose_stamped;
@@ -229,7 +226,6 @@ public:
 
     if ((state->buttons[0] != state->buttons_prev[0]) or (state->buttons[1] != state->buttons_prev[1]))
     {
-
       if ((state->buttons[0] == state->buttons[1]) and (state->buttons[0] == 1))
       {
         state->lock = !(state->lock);
@@ -253,7 +249,7 @@ HDCallbackCode HDCALLBACK omni_state_callback(void *pUserData)
   hdGetDoublev(HD_CURRENT_GIMBAL_ANGLES, omni_state->rot);
   hdGetDoublev(HD_CURRENT_POSITION, omni_state->position);
   hdGetDoublev(HD_CURRENT_JOINT_ANGLES, omni_state->joints);
-  hdGetDoublev(HD_CURRENT_TRANSFORM, omni_state->cur_transform);
+  hdGetDoublev(HD_CURRENT_TRANSFORM, omni_state->hd_cur_transform);
 
   hduVector3Dd vel_buff(0, 0, 0);
   vel_buff = (omni_state->position * 3 - 4 * omni_state->pos_hist1 + omni_state->pos_hist2) / 0.002; //mm/s, 2nd order backward dif
