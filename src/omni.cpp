@@ -242,6 +242,7 @@ public:
 
 HDCallbackCode HDCALLBACK omni_state_callback(void *pUserData)
 {
+  static bool lock_flag = true;
   OmniState *omni_state = static_cast<OmniState *>(pUserData);
 
   hdBeginFrame(hdGetCurrentDevice());
@@ -269,7 +270,16 @@ HDCallbackCode HDCALLBACK omni_state_callback(void *pUserData)
   //	printf("velocity x, y, z, time: %f %f %f \node_", omni_state->velocity[0], omni_state->velocity[1],omni_state->velocity[2]);
   if (omni_state->lock == true)
   {
+    lock_flag = true;
     omni_state->force = 0.04 * (omni_state->lock_pos - omni_state->position) - 0.001 * omni_state->velocity;
+  }
+  else
+  {
+    if(lock_flag == true)
+    {
+      omni_state->force.set(0.0, 0.0, 0.0);
+      lock_flag = false;
+    }
   }
 
   hdSetDoublev(HD_CURRENT_FORCE, omni_state->force);
