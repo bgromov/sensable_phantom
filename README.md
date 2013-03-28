@@ -1,7 +1,7 @@
 phantom_omni
 ============
 
-A fork of ROS [phantom_omni] package (http://www.ros.org/wiki/phantom_omni) developed by Healthcare Robotics Lab at Georgia Tech
+A fork of ROS [phantom_omni](http://www.ros.org/wiki/phantom_omni) package developed by Healthcare Robotics Lab at Georgia Tech
 
 The difference with original package:
  - Namespaced topics and parameters
