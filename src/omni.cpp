@@ -1,3 +1,15 @@
+/*
+ * See ../LICENSE.txt for original copyright and license.
+ */
+
+/*
+ * Copyright (c) 2013, Boris Gromov, BioRobotics Lab at KoreaTech
+ * All right reserved.
+ *
+ * Based on original code from Healthcare Robotics Lab at Georgia Tech
+ *
+ */
+
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <tf/transform_broadcaster.h>
