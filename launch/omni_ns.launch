@@ -1,9 +1,0 @@
-<launch>
-	<arg name="omni_name" />
-	<arg name="publish_rate" />
-	<group ns="$(arg omni_name)">
-		<param name="tf_prefix" value="$(arg omni_name)" />
-		<param name="publish_rate" value="$(arg publish_rate)" />
-		<node pkg="phantom_omni" type="omni" name="$(arg omni_name)" output="screen" />
-	</group>
-</launch>
