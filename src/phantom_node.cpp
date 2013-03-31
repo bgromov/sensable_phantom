@@ -356,7 +356,7 @@ int main(int argc, char** argv)
     return -1;
   }
 
-  ROS_INFO("Found %s.\n\n", hdGetString(HD_DEVICE_MODEL_TYPE));
+  ROS_INFO("Found %s", hdGetString(HD_DEVICE_MODEL_TYPE));
   hdEnable(HD_FORCE_OUTPUT);
 //   hdEnable(HD_MAX_FORCE_CLAMPING);
   hdStartScheduler();
@@ -390,7 +390,7 @@ int main(int argc, char** argv)
   pthread_create(&publish_thread, NULL, ros_publish, (void*)&phantom_ros);
   pthread_join(publish_thread, NULL);
 
-  ROS_INFO("Ending Session....\n");
+  ROS_INFO("Ending Session...");
   hdStopScheduler();
   hdDisableDevice(hHD);
 
