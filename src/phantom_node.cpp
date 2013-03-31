@@ -88,7 +88,6 @@ public:
     //Publish on NAME/pose
     std::string pose_topic_name = "pose";
     pose_publisher = node_->advertise<geometry_msgs::PoseStamped>(pose_topic_name.c_str(), 100);
-    phantom_pose_publisher = node_->advertise<geometry_msgs::PoseStamped>("pose_internal", 100);
 
     //Publish button state on NAME/button
     std::string button_topic = "button";
@@ -165,16 +164,8 @@ public:
     br.sendTransform(
         tf::StampedTransform(sensable, ros::Time::now(), link_names[0].c_str(), sensable_frame_name.c_str()));
 
-    //Sample 'end effector' pose
-    geometry_msgs::PoseStamped pose_stamped;
-    pose_stamped.header.frame_id = tf::resolve(tf_prefix_, link_names[6]);
-    pose_stamped.header.stamp = ros::Time::now();
-    pose_stamped.pose.position.x = 0.0; //was 0.03 to end of phantom
-    pose_stamped.pose.orientation.w = 1.;
-    pose_publisher.publish(pose_stamped);
-
     tf::Transform tf_cur_transform;
-    geometry_msgs::PoseStamped phantom_internal_pose;
+    geometry_msgs::PoseStamped phantom_pose;
 
     // Convert column-major matrix to row-major
     tf_cur_transform.setFromOpenGLMatrix(state->hd_cur_transform);
@@ -186,13 +177,10 @@ public:
     tf_cur_transform.setRotation(tf_cur_transform.getRotation() * sensable.getRotation().inverse());
 
     // Publish pose in phantom_0_link
-    phantom_internal_pose.header.frame_id = tf::resolve(tf_prefix_, link_names[0]);
-    phantom_internal_pose.header.stamp = ros::Time::now();
-    tf::poseTFToMsg(tf_cur_transform, phantom_internal_pose.pose);
-    phantom_pose_publisher.publish(phantom_internal_pose);
-
-//    std::cout << pose_stamped;
-//    std::cout << phantom_internal_pose;
+    phantom_pose.header.frame_id = tf::resolve(tf_prefix_, link_names[0]);
+    phantom_pose.header.stamp = ros::Time::now();
+    tf::poseTFToMsg(tf_cur_transform, phantom_pose.pose);
+    pose_publisher.publish(phantom_pose);
 
     if ((state->buttons[0] != state->buttons_prev[0]) or (state->buttons[1] != state->buttons_prev[1]))
     {
