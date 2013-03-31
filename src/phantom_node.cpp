@@ -156,7 +156,7 @@ public:
     // Construct transforms
     tf::Transform l0, sensable;
     // Distance from table top to first intersection of the axes
-    l0.setOrigin(tf::Vector3(0, 0, 0.135));
+    l0.setOrigin(tf::Vector3(0, 0, 0.135)); // .135 - Omni, .155 - Premium 1.5, .345 - Premium 3.0
     l0.setRotation(tf::createQuaternionFromRPY(0, 0, 0));
     br.sendTransform(tf::StampedTransform(l0, ros::Time::now(), phantom_frame_name.c_str(), link_names[0].c_str()));
 
@@ -322,11 +322,11 @@ void HHD_Auto_Calibration()
 
 void *ros_publish(void *ptr)
 {
-  PhantomROS *omni_ros = (PhantomROS *)ptr;
+  PhantomROS *phantom_ros = (PhantomROS *)ptr;
   int publish_rate;
 
   // reading param from private namespace
-  omni_ros->node_->param(std::string("publish_rate"), publish_rate, 100);
+  phantom_ros->node_->param(std::string("publish_rate"), publish_rate, 100);
 
   ros::Rate loop_rate(publish_rate);
   ros::AsyncSpinner spinner(2);
@@ -334,7 +334,7 @@ void *ros_publish(void *ptr)
 
   while (ros::ok())
   {
-    omni_ros->publish_phantom_state();
+    phantom_ros->publish_phantom_state();
     loop_rate.sleep();
   }
   return NULL;
@@ -371,11 +371,11 @@ int main(int argc, char** argv)
   ////////////////////////////////////////////////////////////////
   // Init ROS
   ////////////////////////////////////////////////////////////////
-  ros::init(argc, argv, "omni_haptic_node");
+  ros::init(argc, argv, "phantom_node");
   PhantomState state;
-  PhantomROS omni_ros;
+  PhantomROS phantom_ros;
 
-  if(omni_ros.init(&state))
+  if(phantom_ros.init(&state))
   {
     hdStopScheduler();
     hdDisableDevice(hHD);
@@ -387,7 +387,7 @@ int main(int argc, char** argv)
   // Loop and publish
   ////////////////////////////////////////////////////////////////
   pthread_t publish_thread;
-  pthread_create(&publish_thread, NULL, ros_publish, (void*)&omni_ros);
+  pthread_create(&publish_thread, NULL, ros_publish, (void*)&phantom_ros);
   pthread_join(publish_thread, NULL);
 
   ROS_INFO("Ending Session....\n");
