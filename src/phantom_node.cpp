@@ -65,6 +65,7 @@ class PhantomROS
 
 public:
   ros::NodeHandlePtr node_;
+  ros::NodeHandlePtr pnode_;
 
   ros::Publisher pose_publisher;
   ros::Publisher phantom_pose_publisher;
@@ -93,7 +94,8 @@ public:
     }
 
     node_ = ros::NodeHandlePtr(new ros::NodeHandle);
-    node_->param(std::string("tf_prefix"), tf_prefix_, std::string(""));
+    pnode_ = ros::NodeHandlePtr(new ros::NodeHandle("~"));
+    pnode_->param(std::string("tf_prefix"), tf_prefix_, std::string(""));
 
     phantom_frame_name = "phantom_base_link";
 
@@ -326,7 +328,7 @@ void *ros_publish(void *ptr)
   int publish_rate;
 
   // reading param from private namespace
-  phantom_ros->node_->param(std::string("publish_rate"), publish_rate, 100);
+  phantom_ros->pnode_->param(std::string("publish_rate"), publish_rate, 100);
 
   ros::Rate loop_rate(publish_rate);
   ros::AsyncSpinner spinner(2);
