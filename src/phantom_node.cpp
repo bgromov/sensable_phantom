@@ -77,11 +77,12 @@ public:
   std::string link_names[7];
 
   std::string tf_prefix_;
+  double table_offset_;
 
   PhantomState *state;
   tf::TransformBroadcaster br;
 
-  PhantomROS() : state(NULL)
+  PhantomROS() : table_offset_(0.0), state(NULL)
   {
   }
 
@@ -96,6 +97,9 @@ public:
     node_ = ros::NodeHandlePtr(new ros::NodeHandle);
     pnode_ = ros::NodeHandlePtr(new ros::NodeHandle("~"));
     pnode_->param(std::string("tf_prefix"), tf_prefix_, std::string(""));
+
+    // Vertical displacement from base_link to link_0. Defaults to Omni offset.
+    pnode_->param(std::string("table_offset"), table_offset_, .135);
 
     //Frame attached to the base of the phantom (NAME/base_link)
     base_link_name = "base_link";
@@ -170,7 +174,7 @@ public:
     // Construct transforms
     tf::Transform l0, sensable;
     // Distance from table top to first intersection of the axes
-    l0.setOrigin(tf::Vector3(0, 0, 0.135)); // .135 - Omni, .155 - Premium 1.5, .345 - Premium 3.0
+    l0.setOrigin(tf::Vector3(0, 0, table_offset_)); // .135 - Omni, .155 - Premium 1.5, .345 - Premium 3.0
     l0.setRotation(tf::createQuaternionFromRPY(0, 0, 0));
     br.sendTransform(tf::StampedTransform(l0, ros::Time::now(), base_link_name.c_str(), link_names[0].c_str()));
 
