@@ -72,7 +72,7 @@ public:
 
   ros::Publisher button_publisher;
   ros::Subscriber wrench_sub;
-  std::string phantom_frame_name;
+  std::string base_link_name;
   std::string sensable_frame_name;
   std::string link_names[7];
 
@@ -97,7 +97,8 @@ public:
     pnode_ = ros::NodeHandlePtr(new ros::NodeHandle("~"));
     pnode_->param(std::string("tf_prefix"), tf_prefix_, std::string(""));
 
-    phantom_frame_name = "phantom_base_link";
+    //Frame attached to the base of the phantom (NAME/base_link)
+    base_link_name = "base_link";
 
     //Publish on NAME/pose
     std::string pose_topic_name = "pose";
@@ -111,13 +112,13 @@ public:
     std::string force_feedback_topic = "force_feedback";
     wrench_sub = node_->subscribe(force_feedback_topic.c_str(), 100, &PhantomROS::wrench_callback, this);
 
-    //Frame of force feedback (NAME/sensable)
-    sensable_frame_name = "sensable_link";
+    //Frame of force feedback (NAME/sensable_origin)
+    sensable_frame_name = "sensable_origin";
 
     for (int i = 0; i < 7; i++)
     {
       std::ostringstream stream1;
-      stream1 << "phantom_" << i << "_link";
+      stream1 << "link_" << i;
       link_names[i] = std::string(stream1.str());
     }
 
@@ -171,8 +172,11 @@ public:
     // Distance from table top to first intersection of the axes
     l0.setOrigin(tf::Vector3(0, 0, 0.135)); // .135 - Omni, .155 - Premium 1.5, .345 - Premium 3.0
     l0.setRotation(tf::createQuaternionFromRPY(0, 0, 0));
-    br.sendTransform(tf::StampedTransform(l0, ros::Time::now(), phantom_frame_name.c_str(), link_names[0].c_str()));
+    br.sendTransform(tf::StampedTransform(l0, ros::Time::now(), base_link_name.c_str(), link_names[0].c_str()));
 
+    // Displacement from vertical axis towards user.
+    // Frame in which OpenHaptics report Phantom coordinates. Valid and useful
+    // for Omni only, since other devices do not do calibration.
     sensable.setOrigin(tf::Vector3(-0.2, 0, 0));
     sensable.setRotation(tf::createQuaternionFromRPY(M_PI / 2, 0, -M_PI / 2));
     br.sendTransform(
@@ -190,7 +194,7 @@ public:
     // Rotate end-effector back to base
     tf_cur_transform.setRotation(tf_cur_transform.getRotation() * sensable.getRotation().inverse());
 
-    // Publish pose in phantom_0_link
+    // Publish pose in link_0
     phantom_pose.header.frame_id = tf::resolve(tf_prefix_, link_names[0]);
     phantom_pose.header.stamp = ros::Time::now();
     tf::poseTFToMsg(tf_cur_transform, phantom_pose.pose);
