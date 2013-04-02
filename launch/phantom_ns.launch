@@ -2,8 +2,9 @@
 	<arg name="phantom_name" />
 	<arg name="publish_rate" />
 	<group ns="$(arg phantom_name)">
-		<param name="tf_prefix" value="$(arg phantom_name)" />
-		<param name="publish_rate" value="$(arg publish_rate)" />
-		<node pkg="sensable_phantom" type="phantom_node" name="$(arg phantom_name)" output="screen" />
+		<node pkg="sensable_phantom" type="phantom_node" name="$(arg phantom_name)" output="screen">
+			<param name="tf_prefix" value="$(arg phantom_name)" />
+			<param name="publish_rate" value="$(arg publish_rate)" />
+		</node>
 	</group>
 </launch>
