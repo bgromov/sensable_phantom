@@ -67,22 +67,22 @@ public:
   ros::NodeHandlePtr node_;
   ros::NodeHandlePtr pnode_;
 
-  ros::Publisher pose_publisher;
+  ros::Publisher pose_publisher_;
 
-  ros::Publisher button_publisher;
-  ros::Subscriber wrench_sub;
-  std::string base_link_name;
-  std::string sensable_frame_name;
-  std::string link_names[7];
+  ros::Publisher button_publisher_;
+  ros::Subscriber wrench_sub_;
+  std::string base_link_name_;
+  std::string sensable_frame_name_;
+  std::string link_names_[7];
 
   std::string tf_prefix_;
   double table_offset_;
   bool locked_;
 
-  PhantomState *state;
-  tf::TransformBroadcaster br;
+  PhantomState *state_;
+  tf::TransformBroadcaster br_;
 
-  PhantomROS() : table_offset_(0.0), locked_(false), state(NULL)
+  PhantomROS() : table_offset_(0.0), locked_(false), state_(NULL)
   {
   }
 
@@ -105,48 +105,48 @@ public:
     pnode_->param(std::string("locked"), locked_, false);
 
     //Frame attached to the base of the phantom (NAME/base_link)
-    base_link_name = "base_link";
+    base_link_name_ = "base_link";
 
     //Publish on NAME/pose
     std::string pose_topic_name = "pose";
-    pose_publisher = node_->advertise<geometry_msgs::PoseStamped>(pose_topic_name.c_str(), 100);
+    pose_publisher_ = node_->advertise<geometry_msgs::PoseStamped>(pose_topic_name, 100);
 
     //Publish button state on NAME/button
     std::string button_topic = "button";
-    button_publisher = node_->advertise<sensable_phantom::PhantomButtonEvent>(button_topic.c_str(), 100);
+    button_publisher_ = node_->advertise<sensable_phantom::PhantomButtonEvent>(button_topic, 100);
 
     //Subscribe to NAME/force_feedback
     std::string force_feedback_topic = "force_feedback";
-    wrench_sub = node_->subscribe(force_feedback_topic.c_str(), 100, &PhantomROS::wrench_callback, this);
+    wrench_sub_ = node_->subscribe(force_feedback_topic, 100, &PhantomROS::wrench_callback, this);
 
     //Frame of force feedback (NAME/sensable_origin)
-    sensable_frame_name = "sensable_origin";
+    sensable_frame_name_ = "sensable_origin";
 
     for (int i = 0; i < 7; i++)
     {
       std::ostringstream stream1;
       stream1 << "link_" << i;
-      link_names[i] = std::string(stream1.str());
+      link_names_[i] = std::string(stream1.str());
     }
 
-    state = s;
-    state->buttons[0] = 0;
-    state->buttons[1] = 0;
-    state->buttons_prev[0] = 0;
-    state->buttons_prev[1] = 0;
+    state_ = s;
+    state_->buttons[0] = 0;
+    state_->buttons[1] = 0;
+    state_->buttons_prev[0] = 0;
+    state_->buttons_prev[1] = 0;
     hduVector3Dd zeros(0, 0, 0);
-    state->velocity = zeros;
-    state->inp_vel1 = zeros; //3x1 history of velocity
-    state->inp_vel2 = zeros; //3x1 history of velocity
-    state->inp_vel3 = zeros; //3x1 history of velocity
-    state->out_vel1 = zeros; //3x1 history of velocity
-    state->out_vel2 = zeros; //3x1 history of velocity
-    state->out_vel3 = zeros; //3x1 history of velocity
-    state->pos_hist1 = zeros; //3x1 history of position
-    state->pos_hist2 = zeros; //3x1 history of position
-    state->lock = locked_;
-    state->lock_pos = zeros;
-    state->hd_cur_transform = hduMatrix::createTranslation(0, 0, 0);
+    state_->velocity = zeros;
+    state_->inp_vel1 = zeros; //3x1 history of velocity
+    state_->inp_vel2 = zeros; //3x1 history of velocity
+    state_->inp_vel3 = zeros; //3x1 history of velocity
+    state_->out_vel1 = zeros; //3x1 history of velocity
+    state_->out_vel2 = zeros; //3x1 history of velocity
+    state_->out_vel3 = zeros; //3x1 history of velocity
+    state_->pos_hist1 = zeros; //3x1 history of position
+    state_->pos_hist2 = zeros; //3x1 history of position
+    state_->lock = locked_;
+    state_->lock_pos = zeros;
+    state_->hd_cur_transform = hduMatrix::createTranslation(0, 0, 0);
 
     return 0;
   }
@@ -160,9 +160,9 @@ public:
     ////////////////////helps to stabilize the overall force feedback. It isn't
     ////////////////////like we are getting direct impedance matching from the
     ////////////////////omni anyway
-    state->force[0] = wrench->force.x - 0.001 * state->velocity[0];
-    state->force[1] = wrench->force.y - 0.001 * state->velocity[1];
-    state->force[2] = wrench->force.z - 0.001 * state->velocity[2];
+    state->force[0] = wrench->force.x - 0.001 * state_->velocity[0];
+    state->force[1] = wrench->force.y - 0.001 * state_->velocity[1];
+    state->force[2] = wrench->force.z - 0.001 * state_->velocity[2];
 
     // Both force and torque supplied in one coordinate frame
 
@@ -179,21 +179,21 @@ public:
     // Distance from table top to first intersection of the axes
     l0.setOrigin(tf::Vector3(0, 0, table_offset_)); // .135 - Omni, .155 - Premium 1.5, .345 - Premium 3.0
     l0.setRotation(tf::createQuaternionFromRPY(0, 0, 0));
-    br.sendTransform(tf::StampedTransform(l0, ros::Time::now(), base_link_name.c_str(), link_names[0].c_str()));
+    br_.sendTransform(tf::StampedTransform(l0, ros::Time::now(), base_link_name_.c_str(), link_names_[0].c_str()));
 
     // Displacement from vertical axis towards user.
     // Frame in which OpenHaptics report Phantom coordinates. Valid and useful
     // for Omni only, since other devices do not do calibration.
     sensable.setOrigin(tf::Vector3(-0.2, 0, 0));
     sensable.setRotation(tf::createQuaternionFromRPY(M_PI / 2, 0, -M_PI / 2));
-    br.sendTransform(
-        tf::StampedTransform(sensable, ros::Time::now(), link_names[0].c_str(), sensable_frame_name.c_str()));
+    br_.sendTransform(
+        tf::StampedTransform(sensable, ros::Time::now(), link_names_[0].c_str(), sensable_frame_name_.c_str()));
 
     tf::Transform tf_cur_transform;
     geometry_msgs::PoseStamped phantom_pose;
 
     // Convert column-major matrix to row-major
-    tf_cur_transform.setFromOpenGLMatrix(state->hd_cur_transform);
+    tf_cur_transform.setFromOpenGLMatrix(state_->hd_cur_transform);
     // Scale from mm to m
     tf_cur_transform.setOrigin(tf_cur_transform.getOrigin() / 1000.0);
     // Since hd_cur_transform is defined w.r.t. sensable_frame
@@ -202,23 +202,23 @@ public:
     tf_cur_transform.setRotation(tf_cur_transform.getRotation() * sensable.getRotation().inverse());
 
     // Publish pose in link_0
-    phantom_pose.header.frame_id = tf::resolve(tf_prefix_, link_names[0]);
+    phantom_pose.header.frame_id = tf::resolve(tf_prefix_, link_names_[0]);
     phantom_pose.header.stamp = ros::Time::now();
     tf::poseTFToMsg(tf_cur_transform, phantom_pose.pose);
-    pose_publisher.publish(phantom_pose);
+    pose_publisher_.publish(phantom_pose);
 
-    if ((state->buttons[0] != state->buttons_prev[0]) or (state->buttons[1] != state->buttons_prev[1]))
+    if ((state_->buttons[0] != state_->buttons_prev[0]) or (state_->buttons[1] != state_->buttons_prev[1]))
     {
-      if ((state->buttons[0] == state->buttons[1]) and (state->buttons[0] == 1))
+      if ((state_->buttons[0] == state_->buttons[1]) and (state_->buttons[0] == 1))
       {
-        state->lock = !(state->lock);
+        state_->lock = !(state_->lock);
       }
       sensable_phantom::PhantomButtonEvent button_event;
-      button_event.grey_button = state->buttons[0];
-      button_event.white_button = state->buttons[1];
-      state->buttons_prev[0] = state->buttons[0];
-      state->buttons_prev[1] = state->buttons[1];
-      button_publisher.publish(button_event);
+      button_event.grey_button = state_->buttons[0];
+      button_event.white_button = state_->buttons[1];
+      state_->buttons_prev[0] = state_->buttons[0];
+      state_->buttons_prev[1] = state_->buttons[1];
+      button_publisher_.publish(button_event);
     }
   }
 };
