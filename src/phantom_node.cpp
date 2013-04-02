@@ -12,9 +12,9 @@
 
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/Wrench.h>
 #include <geometry_msgs/WrenchStamped.h>
 #include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 
 #include <string.h>
 #include <stdio.h>
@@ -81,6 +81,7 @@ public:
 
   PhantomState *state_;
   tf::TransformBroadcaster br_;
+  tf::TransformListener ls_;
 
   PhantomROS() : table_offset_(0.0), locked_(false), state_(NULL)
   {
@@ -154,22 +155,32 @@ public:
   /*******************************************************************************
    ROS node callback.
    *******************************************************************************/
-  void wrench_callback(const geometry_msgs::WrenchConstPtr& wrench)
+  void wrench_callback(const geometry_msgs::WrenchStampedConstPtr& wrench)
   {
+    // Both force and torque supplied in the same coordinate frame
+    geometry_msgs::Vector3Stamped f_in, f_out;
+    geometry_msgs::Vector3Stamped t_in, t_out;
+
+    t_in.header = f_in.header = wrench->header;
+
+    f_in.vector = wrench->wrench.force;
+    t_in.vector = wrench->wrench.torque;
+
+    ls_.transformVector(sensable_frame_name_, f_in, f_out);
+    ls_.transformVector(sensable_frame_name_, t_in, t_out);
+
     ////////////////////Some people might not like this extra damping, but it
     ////////////////////helps to stabilize the overall force feedback. It isn't
     ////////////////////like we are getting direct impedance matching from the
     ////////////////////omni anyway
-    state->force[0] = wrench->force.x - 0.001 * state_->velocity[0];
-    state->force[1] = wrench->force.y - 0.001 * state_->velocity[1];
-    state->force[2] = wrench->force.z - 0.001 * state_->velocity[2];
-
-    // Both force and torque supplied in one coordinate frame
+    state_->force[0] = f_out.vector.x - 0.001 * state_->velocity[0];
+    state_->force[1] = f_out.vector.y - 0.001 * state_->velocity[1];
+    state_->force[2] = f_out.vector.z - 0.001 * state_->velocity[2];
 
     // TODO torque should be split back to gimbal axes
-    state->torque[0] = wrench->torque.x;
-    state->torque[1] = wrench->torque.y;
-    state->torque[2] = wrench->torque.z;
+    state_->torque[0] = t_out.vector.x;
+    state_->torque[1] = t_out.vector.y;
+    state_->torque[2] = t_out.vector.z;
   }
 
   void publish_phantom_state()
