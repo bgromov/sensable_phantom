@@ -1,9 +1,22 @@
 # Build directories
+bin/
+build/
+msg_gen/
+src/sensable_phantom/
+
+catkin/
+catkin_generated/
+cmake_install.cmake
+devel/
+gtest/
 
 # Eclipse project files
 .cproject
 .pydevproject
 .project
+
+CATKIN_IGNORE
+
 
 # Backup files (e.g. gedit backup files)
 *~
