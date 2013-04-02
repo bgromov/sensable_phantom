@@ -78,11 +78,12 @@ public:
 
   std::string tf_prefix_;
   double table_offset_;
+  bool locked_;
 
   PhantomState *state;
   tf::TransformBroadcaster br;
 
-  PhantomROS() : table_offset_(0.0), state(NULL)
+  PhantomROS() : table_offset_(0.0), locked_(false), state(NULL)
   {
   }
 
@@ -100,6 +101,9 @@ public:
 
     // Vertical displacement from base_link to link_0. Defaults to Omni offset.
     pnode_->param(std::string("table_offset"), table_offset_, .135);
+
+    // On startup device will generate forces to hold end-effector at origin.
+    pnode_->param(std::string("locked"), locked_, false);
 
     //Frame attached to the base of the phantom (NAME/base_link)
     base_link_name = "base_link";
@@ -141,7 +145,7 @@ public:
     state->out_vel3 = zeros; //3x1 history of velocity
     state->pos_hist1 = zeros; //3x1 history of position
     state->pos_hist2 = zeros; //3x1 history of position
-    state->lock = true;
+    state->lock = locked_;
     state->lock_pos = zeros;
     state->hd_cur_transform = hduMatrix::createTranslation(0, 0, 0);
 
