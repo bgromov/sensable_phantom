@@ -68,7 +68,6 @@ public:
   ros::NodeHandlePtr pnode_;
 
   ros::Publisher pose_publisher;
-  ros::Publisher phantom_pose_publisher;
 
   ros::Publisher button_publisher;
   ros::Subscriber wrench_sub;
