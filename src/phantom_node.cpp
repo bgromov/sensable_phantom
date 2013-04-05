@@ -166,8 +166,15 @@ public:
     f_in.vector = wrench->wrench.force;
     t_in.vector = wrench->wrench.torque;
 
-    ls_.transformVector(sensable_frame_name_, f_in, f_out);
-    ls_.transformVector(sensable_frame_name_, t_in, t_out);
+    try
+    {
+      ls_.transformVector(sensable_frame_name_, f_in, f_out);
+      ls_.transformVector(sensable_frame_name_, t_in, t_out);
+    }
+    catch(tf::TransformException& ex)
+    {
+      ROS_ERROR("%s", ex.what());
+    }
 
     ////////////////////Some people might not like this extra damping, but it
     ////////////////////helps to stabilize the overall force feedback. It isn't
