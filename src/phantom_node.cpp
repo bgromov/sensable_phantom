@@ -77,13 +77,14 @@ public:
 
   std::string tf_prefix_;
   double table_offset_;
+  double damping_k_;
   bool locked_;
 
   PhantomState *state_;
   tf::TransformBroadcaster br_;
   tf::TransformListener ls_;
 
-  PhantomROS() : table_offset_(0.0), locked_(false), state_(NULL)
+  PhantomROS() : table_offset_(0.0), damping_k_(0.0), locked_(false), state_(NULL)
   {
   }
 
@@ -101,6 +102,9 @@ public:
 
     // Vertical displacement from base_link to link_0. Defaults to Omni offset.
     pnode_->param(std::string("table_offset"), table_offset_, .135);
+
+    // Force feedback damping coefficient
+    pnode_->param(std::string("damping_k"), damping_k_, 0.001);
 
     // On startup device will generate forces to hold end-effector at origin.
     pnode_->param(std::string("locked"), locked_, false);
@@ -160,8 +164,12 @@ public:
     // Both force and torque supplied in the same coordinate frame
     geometry_msgs::Vector3Stamped f_in, f_out;
     geometry_msgs::Vector3Stamped t_in, t_out;
+    std_msgs::Header h;
 
-    t_in.header = f_in.header = wrench->header;
+    h = wrench->header;
+    h.stamp = ros::Time(0);
+
+    t_in.header = f_in.header = h;
 
     f_in.vector = wrench->wrench.force;
     t_in.vector = wrench->wrench.torque;
@@ -180,9 +188,9 @@ public:
     ////////////////////helps to stabilize the overall force feedback. It isn't
     ////////////////////like we are getting direct impedance matching from the
     ////////////////////omni anyway
-    state_->force[0] = f_out.vector.x - 0.001 * state_->velocity[0];
-    state_->force[1] = f_out.vector.y - 0.001 * state_->velocity[1];
-    state_->force[2] = f_out.vector.z - 0.001 * state_->velocity[2];
+    state_->force[0] = f_out.vector.x - damping_k_ * state_->velocity[0];
+    state_->force[1] = f_out.vector.y - damping_k_ * state_->velocity[1];
+    state_->force[2] = f_out.vector.z - damping_k_ * state_->velocity[2];
 
     // TODO torque should be split back to gimbal axes
     state_->torque[0] = t_out.vector.x;
