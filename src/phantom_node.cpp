@@ -164,8 +164,12 @@ public:
     // Both force and torque supplied in the same coordinate frame
     geometry_msgs::Vector3Stamped f_in, f_out;
     geometry_msgs::Vector3Stamped t_in, t_out;
+    std_msgs::Header h;
 
-    t_in.header = f_in.header = wrench->header;
+    h = wrench->header;
+    h.stamp = ros::Time(0);
+
+    t_in.header = f_in.header = h;
 
     f_in.vector = wrench->wrench.force;
     t_in.vector = wrench->wrench.torque;
