@@ -79,12 +79,13 @@ public:
   double table_offset_;
   double damping_k_;
   bool locked_;
+  bool calibrate_;
 
   PhantomState *state_;
   tf::TransformBroadcaster br_;
   tf::TransformListener ls_;
 
-  PhantomROS() : table_offset_(0.0), damping_k_(0.0), locked_(false), state_(NULL)
+  PhantomROS() : table_offset_(0.0), damping_k_(0.0), locked_(false), calibrate_(false), state_(NULL)
   {
   }
 
@@ -108,6 +109,9 @@ public:
 
     // On startup device will generate forces to hold end-effector at origin.
     pnode_->param(std::string("locked"), locked_, false);
+
+    // Check calibration status on start up and calibrate if necessary.
+    pnode_->param(std::string("calibrate"), calibrate_, false);
 
     //Frame attached to the base of the phantom (NAME/base_link)
     base_link_name_ = "base_link";
@@ -412,7 +416,6 @@ int main(int argc, char** argv)
     //, &error);
     return -1;
   }
-  HHD_Auto_Calibration();
 
   if(phantom_ros.init(&state))
   {
@@ -420,6 +423,12 @@ int main(int argc, char** argv)
     hdDisableDevice(hHD);
     return -1;
   }
+  
+  if(phantom_ros.calibrate_)
+  {
+    HHD_Auto_Calibration();
+  }
+
   hdScheduleAsynchronous(phantom_state_callback, &state, HD_MAX_SCHEDULER_PRIORITY);
 
   ////////////////////////////////////////////////////////////////
